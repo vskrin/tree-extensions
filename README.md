@@ -19,7 +19,10 @@ In particular, in 2nd edition of the book you can find it in section 8.9.
 The book describes the method as follows:
 
 ```
-Bumping uses bootstrap sampling to move randomly through model space. For problems where fitting method finds many local minima, bumping can help the method to avoid getting stuck in poor solutions.
+Bumping uses bootstrap sampling to move randomly through model space. 
+
+For problems where fitting method finds many local minima, 
+bumping can help the method to avoid getting stuck in poor solutions.
 ```
 
 In a few more words, what bumper algorithm does, is it uses bootstrap resampling to find better decision tree models. It achieves better performance if the original model was unable to reach optimal state due to symmetries in the data (see the reference below) or if randomness in the data led it to converge to a sub-optimal configuration (something like a local minimum).

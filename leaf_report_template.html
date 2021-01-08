@@ -18,7 +18,8 @@
     <div class="container">
         <H3>Leaf report</H3>
         <h5> Target rate: {{ target_rate }}% </h5>
-        <br> {% for leaf in leaf_report %}
+        <br> 
+		{% for leaf in leaf_report %}
         <div class="card">
             <div class="card-header">
                 <h5>Leaf #{{loop.index}} </h5>
@@ -51,8 +52,9 @@
 
                     <div class="col col-lg-4">
                         <strong class="card-text">
-                                Decision path: <br>
-                            </strong>
+							Decision path: 
+							<br>
+						</strong>
                         <table class="table table-hover">
                             <thead>
                                 <tr>
@@ -63,17 +65,18 @@
                             <tbody>
                                 {% for condition in leaf['decision_path'] %}
                                 <tr>
-                                    <td> {{ condition[0] }} </td>
+                                    <td> 
+										{{ condition[0] }} 
+									</td>
                                     <td>
-                                        {% if condition[1]=="
-                                        <=" %} 
-                                                    <i data-feather=" chevron-left "></i> 
-                                                {% else %}
-                                                    <i data-feather="chevron-right "></i>
-                                                {% endif %}
-                                                    &nbsp; {{ condition[2] }}
-                                            </td>
-                                        </tr>
+                                        {% if condition[1]=="<=" %} 
+											<i data-feather="chevron-left"></i> 
+										{% else %}
+											<i data-feather="chevron-right"></i>
+										{% endif %}
+											&nbsp; {{ condition[2] }}
+									</td>
+								</tr>
                                     {% endfor %}
                                 </tbody>
                             </table>

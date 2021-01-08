@@ -60,7 +60,7 @@ Note that the class cannot be written by inheriting directly from DecisionTreeCl
 
 The code discussed in this section can be used to generate reports such as this one:
 
-![leaf report sample](leaf_report_sample.png)
+![leaf report sample](leaf_report_sample.PNG)
 
 In particular, this example consists of:
 * `leaf_report.py`, which contains the main logic

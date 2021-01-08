@@ -70,9 +70,13 @@ class Bumper(ClassifierMixin, MetaEstimatorMixin):
 
 def score_model(*,model:"DecisionTreeClassifier", features:"numpy.array", target:"numpy.array")->dict:
     """
-    Takes scikit-learn decision tree model, an array of features, and a 1d array of target labels.
-    Returns scoring dictionary of model quality metrics and corresponding values.
-    It also returns false positive rate and true positive rate which may be used for plotting ROC curves.
+    Args:
+        model: scikit-learn decision tree model
+        features: an array of features
+        target: 1d array of target labels.
+    Returns:
+        Scoring dictionary of model quality metrics and corresponding values.
+        It also returns false positive rate and true positive rate which may be used for plotting ROC curves.
     """
     predicted_labels = model.predict(features)
     predicted_proba = model.predict_proba(features)[:,1]

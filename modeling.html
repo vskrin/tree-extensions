@@ -1,0 +1,417 @@
+{% extends "layout.html" %} 
+
+{% block body %}
+
+<H3>Modeling</H3>
+<br>
+
+{% if app_state['modeling_ready'] %}
+    <!-- flag modeling_ready is True: show modeling form -->
+    <div class="row">     
+        <div class="col col-md-3">
+            <div class="container">
+                <!-- Select target -->
+                <form method="POST" action="">
+                    <a>Choose target customers </a>
+                    <br>
+                    <div class="form-check form-check">
+                        <input class="form-check-input" type="radio" name="select-target" value="detr" id="detr" checked>
+                        <label class="form-check-label" for="detr">Detractors (NPS=1,2,3)</label>
+                    </div>
+                    <div class="form-check form-check">
+                        <input class="form-check-input" type="radio" name="select-target" value="prom" id="prom" {% if model.target=="prom" %} checked {% endif %}>
+                        <label class="form-check-label" for="prom">Promoters (NPS=5)</label>
+                    </div>
+                    <br>
+                    <button type="submit" name="select-target" class="btn btn-outline-primary">Label target</button>
+                </form>
+                <hr class="mt-3 mb-3"/>
+
+                <!-- Select train-test split ratio -->
+                <form method="POST" action="">
+                    <label for="split-slider" class="form-label">Train-test split</label><br>
+                    <input type="range" class="form-range" name="select-split" min="0" max="100" step="10" id="split-slider"
+                        {% if model.train_ratio %} value="{{ model.train_ratio }}" {% endif %}
+                    >
+
+                    <br>
+                    {% if app_state['target_labeled'] %}
+                        <button type="submit" name="select-split" class="btn btn-outline-primary">Split</button>
+                    {% else %}
+                        <button type="submit" name="select-split" class="btn btn-outline-primary" disabled>Split</button>
+                    {% endif %}
+                </form>
+                <hr class="mt-3 mb-3"/>
+
+                <!-- Model parameters -->
+                <form method="POST" action="">
+
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="use_bumper" id="use-bumper"
+                            {% if model.model_type=="bumper" %} checked {% endif %}
+                        >
+                        <label class="form-check-label" for="use-bumper">Bumper</label>
+                    </div>
+
+                    <div class="form-group col-md-4">
+                        <label for="tree_depth">Maximum tree depth</label>
+                        <input type="text" class="form-control" name="tree_depth" placeholder="3, 4, 5,..." {% if model.model_params.max_depth %} value={{ model.model_params.max_depth }} {% endif %} >
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="min_node_split">Minimum node size that can be split</label>
+                        <input type="text" class="form-control" name="min_node_split" placeholder="5, 50, 500,..." {% if model.model_params.min_samples_split %} value={{ model.model_params.min_samples_split }} {% endif %} >
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="min_leaf">Minimum allowed leaf size</label>
+                        <input type="text" class="form-control" name="min_leaf" placeholder="5, 50, 500,..." {% if model.model_params.min_samples_leaf %} value={{ model.model_params.min_samples_leaf }} {% endif %} >
+                    </div>
+                    <br>
+                    {% if app_state['target_labeled'] and app_state['data_split'] %}
+                        <button type="submit" name="build-model" class="btn btn-outline-primary">Build model</button>
+                    {% else %}
+                        <button type="submit" name="build-model" class="btn btn-outline-primary" disabled>Build model</button>
+                    {% endif %}
+                </form>
+                <hr class="mt-3 mb-3"/>
+
+            </div>
+        </div>
+
+        <div class="col col-9">
+
+            {% if app_state['target_labeled'] %}
+                <H4> Modeling dataset</H4>
+
+                {% if model.target=='detr' %}
+                    Modeling on detractors.
+                {% elif model.target=='prom' %}
+                    Modeling on promoters.
+                {% endif %}
+                <br>
+
+                {% if app_state['data_split'] %}
+                    Train-test split performed. Train set contains {{ model.train_ratio }}% of rows.
+                    <br>
+                {% endif %}
+                <hr class="mt-5 mb-3"/>
+            {% endif %}
+            
+            <!-- model evaluation-->
+            {% if app_state['active_model'] %}
+
+                <!-- Model validation modal  -->
+                <div class="modal fade" id="validate-modal" tabindex="-1" aria-labelledby="modal-label" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="modal-label">Model validation</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                The more models you validate the higher the likelihood that validation results are misleading.<br><br>
+                                You have <strong>validated {{ app_state['n_validated'] }} models</strong> in the current session. <br><br>
+                                Try another model or continue with validation?
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Return</button>
+                                <form method=POST action="">
+                                    <button type="submit" name="validate-model" class="btn btn-primary">Validate</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col col-md-auto">
+                        <H4>Active model evaluation</H4>
+                    </div>
+                    
+                    <div class="col">
+                        <div class="input-group flex-nowrap">
+                            <span class="input-group-text"> <i data-feather="award"></i> </span>
+                            <button type="button" class="btn btn-outline-primary" 
+                                    data-bs-toggle="modal" data-bs-target="#validate-modal"
+                                    {% if app_state['active_model_validated'] %} disabled {%endif%}
+                            >Validate model</button>
+                            <span class="input-group-text"> <i data-feather="pocket"></i> </span>
+                            <form method=POST action="">
+                                <button type="submit" name="save-model" class="btn btn-outline-primary"
+                                {% if app_state['active_model_saved'] %} disabled {%endif%}
+                                >Save model</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <br>
+                
+                <div class="row">
+                    <!-- show active model parameters -->
+                    <div class="col col-4">
+                        <p class="font-weight-bold"> Model parameters</p>
+                        <div class="table">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th scope="col"> Parameter </th> <th scope="col"> Value </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for param, value in model.model_params.items() %}
+                                    <tr>
+                                        <td> {{ param }} </td> <td> {{ value }} </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr>
+                                        <td> Model type </td> <td> {{ model.model_type }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <br>
+                <br>
+
+              
+                <div class="row">
+                    <div class="col col-lg-11">
+                        <div class="accordion" id="model-accordion">
+
+                            <!-- show active model scores -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="head-scores">
+                                    <button 
+                                    {% if app_state['active_model_validated'] %}
+                                        class="accordion-button collapsed"
+                                        aria-expanded= "false"
+                                    {% else %}
+                                        class="accordion-button"
+                                        aria-expanded= "true"
+                                    {% endif %}
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapse-scores" 
+                                    aria-controls="collapse-scores">
+                                        <i data-feather="target"></i> &nbsp; Model scores
+                                    </button>
+                                </h2>
+                                <div id="collapse-scores" 
+                                    class="accordion-collapse collapse {% if not app_state['active_model_validated'] %} show {% endif %}" 
+                                    aria-labelledby="head-scores" data-bs-parent="#model-accordion"
+                                    >
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            <div class="col col-4">
+                                                <div class="table-responsive">
+                                                    <table class="table table-hover">
+                                                        <thead>
+                                                            <tr>
+                                                                <th scope="col"> Metric </th> <th scope="col"> Score </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for metric, score in model.train_scores.items() %}
+                                                            <tr>
+                                                                <td> {{ metric }} </td> <td> {{ score }}% </td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                        
+                                            <!-- show training set ROC curve -->
+                                            <div class="col col-4">
+                                                <img src="{{ url_for('static', filename='ROC_train.png') }}" class="img-fluid" alt="ROC curve"> 
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- confusion matrix -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="head-confusion-mat">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-conf-mat" aria-expanded="false" aria-controls="collapse-conf-mat">
+                                        <i data-feather="grid"> </i> &nbsp; Confusion matrix
+                                    </button>
+                                </h2>
+                                <div id="collapse-conf-mat" class="accordion-collapse collapse" aria-labelledby="head-confusion-mat" data-bs-parent="#model-accordion">
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            <!-- show confusion matrix -->
+                                            <div class="col col-6">
+                                                <div class="table">
+                                                    <table class="table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>  </th> <th> Target </th> <th> Non-target  </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                            <td>Predicted target </td> <td class="table-success"> {{ model.train_scores["True positive share"] }}% </td> <td class="table-warning"> {{ model.train_scores["False positive share"] }}% </td>
+                                                            </tr>
+                                                            <tr>
+                                                            <td>Predicted non-target </td> <td class="table-warning"> {{ model.train_scores["False negative share"] }}% </td> <td class="table-success"> {{ model.train_scores["True negative share"] }}% </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- decision tree path diagram -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="head-tree-diag">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-tree" aria-expanded="false" aria-controls="collapse-tree">
+                                        <i data-feather="triangle"> </i> &nbsp; Decision tree diagram
+                                    </button>
+                                </h2>
+                                <div id="collapse-tree" class="accordion-collapse collapse" aria-labelledby="head-tree-diag" data-bs-parent="#model-accordion">
+                                    <div class="accordion-body">
+                                        <img src="{{ url_for('static', filename='tree_diagram.png') }}" class="img-fluid" alt="tree diagram">                               
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- leaf report -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="head-leaf-report">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-leaf-report" aria-expanded="false" aria-controls="collapse-leaf-report">
+                                        <i data-feather="list"> </i> &nbsp; Leaf report
+                                    </button>
+                                </h2>
+                                <div id="collapse-leaf-report" class="accordion-collapse collapse" aria-labelledby="head-leaf-report" data-bs-parent="#model-accordion">
+                                    <div class="accordion-body">
+                                        <h5> Target rate: {{ model.target_rate }}% </h5>
+                                        <br>
+                                        <br>
+                                        {% for leaf in model.leaf_report %}
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h5>Leaf #{{loop.index}} </h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row">
+                                                        <div class="col col-lg-4">
+                                                            <strong>
+                                                                <div class="progress" style="height: {{ 2*leaf['share_rows'] }}px;">
+                                                                    <div    class="progress-bar {% if leaf['target_prob']>=60 %} bg-success 
+                                                                                                {% elif leaf['target_prob']<=40 %} bg-danger
+                                                                                                {% else %} bg-warning
+                                                                                                {% endif %}" 
+                                                                            role="progressbar" style="width: {{ leaf['target_prob'] }}%;" 
+                                                                            aria-valuenow="{{ leaf['target_prob'] }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                                                </div>
+                                                                Target prob: {{ leaf['target_prob'] }}% <br>
+                                                                Node rows: {{ leaf['total_rows'] }} 
+                                                            </strong>
+                                                                ({{ leaf['share_rows'] }}% of all rows) <br>
+                                                        </div>
+                                                        
+                                                        <div class="col col-lg-4">
+                                                            <strong class="card-text">
+                                                                Decision path: <br>
+                                                            </strong>
+                                                            <table class="table table-hover">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th> Feature </th> <th colspan="2"> Splitting condition </th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {% for condition in leaf['decision_path'] %}
+                                                                    <tr>
+                                                                        <td> {{ condition[0] }} </td> 
+                                                                        <td> {% if condition[1]=="<=" %} 
+                                                                                <i data-feather="chevron-left"></i> 
+                                                                             {% else %}
+                                                                                <i data-feather="chevron-right"></i>
+                                                                             {% endif %}
+                                                                            &nbsp; {{ condition[2] }}</td>
+                                                                    </tr>
+                                                                    {% endfor %}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <br>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if app_state['active_model_validated'] %}
+                                <!-- active model validation scores -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="head-scores-valid">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-scores-valid" aria-expanded="true" aria-controls="collapse-scores-valid">
+                                            <i data-feather="award"></i> &nbsp; Model scores - validation
+                                        </button>
+                                    </h2>
+                                    <div id="collapse-scores-valid" class="accordion-collapse collapse show" aria-labelledby="head-scores-valid" data-bs-parent="#model-accordion">
+                                        <div class="accordion-body">
+                                            <div class="row">
+                                                <div class="col col-4">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th scope="col"> Metric </th> <th scope="col"> Validation score </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {% for metric, score in model.valid_scores.items() %}
+                                                                <tr>
+                                                                    <td> {{ metric }} </td> <td> {{ score }}% </td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                            
+                                                <!-- show validation set ROC curve -->
+                                                <div class="col col-4">
+                                                    <img src="{{ url_for('static', filename='ROC_validation.png') }}" class="img-fluid" alt="ROC curve"> 
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- <p class="font-weight-bold"> Decision tree diagram </p>
+                <img src="{{ url_for('static', filename='tree_diagram.png') }}" class="img-fluid" alt="tree diagram"> -->
+    
+            {% endif %}
+        </div>
+    </div>
+<br><br>
+
+{% else %}
+    <!-- flag modeling_ready is False: show the following instead of modeling form -->
+    <p>
+        Data not prepared.<br>
+        Please prepare data before modeling.
+    </p>
+
+    <form action="{{url_for('prepare_data')}}">
+        <button type="submit" class="btn btn-outline-primary">Go to data prep!</button>
+    </form>
+
+{% endif %}
+
+
+{% endblock %}

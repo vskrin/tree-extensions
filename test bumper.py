@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 import seaborn as sns
@@ -82,6 +83,7 @@ score, _, _ = bumper.score_model(model=simple_tree,
                                 features=X_, 
                                 target=y_)
 print("Simple tree score:\n", score)
+
 
 #
 # EVALUATE BUMPER
